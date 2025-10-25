@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robo-Penguins Mission Log Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .tts-button {
+            transition: all 0.15s ease-in-out;
+        }
+        .tts-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .tts-button:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .tts-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        /* Custom message box style for alerts */
+        #message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            display: none; /* Initially hidden */
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-center items-center">
+
+    <!-- Custom Message Box (for error handling, replaces alert()) -->
+    <div id="message-box" class="hidden">
+        <div id="message-content" class="text-lg font-semibold text-gray-800"></div>
+        <button onclick="document.getElementById('message-box').style.display='none';" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">OK</button>
+    </div>
+
+    <!-- Hidden Audio Element to Play MP3 Files -->
+    <audio id="quiz-audio" preload="auto"></audio>
+
+    <div class="container bg-white p-6 md:p-10 shadow-xl rounded-2xl w-full">
+        <!-- Tab Navigation -->
+        <div class="flex border-b mb-6">
+            <button id="quiz-tab-btn" onclick="showTab('quiz-view')" class="px-4 py-2 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600">Quiz</button>
+            <button id="scores-tab-btn" onclick="showTab('scores-view')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:border-gray-300">View Scores</button>
+        </div>
+
+        <!-- Quiz View -->
+        <div id="quiz-view">
+            <h1 class="text-4xl font-bold text-center text-indigo-700 mb-6">Robo-Penguins Mission Log Quiz</h1>
+            <p class="text-center text-gray-600 mb-8">Listen to the story, then click A, B, or C to answer. Your score will be saved locally!</p>
+            
+            <div class="bg-indigo-50 p-6 rounded-xl shadow-inner mb-8">
+                <div id="status-text" class="text-lg font-semibold text-indigo-800 mb-4">
+                    Loading quiz...
+                </div>
+                <div id="question-text" class="text-2xl font-bold text-gray-900 min-h-[50px]">
+                    <!-- Question Text will be inserted here -->
+                </div>
+                <div id="options-text" class="mt-4 space-y-2 text-xl">
+                    <!-- Options will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Action Buttons (A, B, C) -->
+            <div id="answer-buttons" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <button id="btn-a" data-answer="A" onclick="checkAnswer('A')" class="tts-button bg-green-500 text-white p-6 rounded-xl text-3xl font-extrabold shadow-lg hover:bg-green-600 disabled:bg-gray-400">
+                    A
+                </button>
+                <button id="btn-b" data-answer="B" onclick="checkAnswer('B')" class="tts-button bg-yellow-500 text-white p-6 rounded-xl text-3xl font-extrabold shadow-lg hover:bg-yellow-600 disabled:bg-gray-400">
+                    B
+                </button>
+                <button id="btn-c" data-answer="C" onclick="checkAnswer('C')" class="tts-button bg-red-500 text-white p-6 rounded-xl text-3xl font-extrabold shadow-lg hover:bg-red-600 disabled:bg-gray-400">
+                    C
+                </button>
+            </div>
+
+            <!-- Controls/Restart -->
+            <div class="text-center mt-8">
+                 <button id="restart-button" onclick="startQuiz()" class="tts-button bg-blue-500 text-white px-8 py-3 rounded-xl text-lg font-semibold shadow-md hover:bg-blue-600 hidden">
+                    Restart Quiz
+                </button>
+                <button id="start-story-button" onclick="startStorySequence()" class="tts-button bg-blue-600 text-white px-8 py-3 rounded-xl text-lg font-semibold shadow-md hover:bg-blue-700">
+                    Start the Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- Scores View -->
+        <div id="scores-view" class="hidden">
+            <h2 class="text-3xl font-bold text-indigo-700 mb-4">Mission Log: Saved Scores</h2>
+            <p class="text-gray-600 mb-4">Results are stored in your browser. They will not be visible to other users.</p>
+
+            <div id="scores-content">
+                <table id="scores-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempt ID</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scores-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="3" class="text-center py-4 text-gray-500">No scores saved in this browser yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Audio Paths and Data ---
+        const AUDIO_PATH = 'audio/'; 
+        const QUIZ_TOPIC = "Robo-Penguins Mission Log";
+        const LOCAL_STORAGE_KEY = 'roboPenguinScores';
+
+        const quizData = [
+            {
+                title: "Ice Cold (Issue #1)",
+                story_file: AUDIO_PATH + "story_1_audio.mp3", 
+                questions: [
+                    {
+                        text: "Question one: Why does Princess Frost need to find the space fish?",
+                        options: { A: "To trade them for an igloo.", B: "To find power for their advanced penguin technology.", C: "To feed the hungry penguin crew." },
+                        answer: "B",
+                        question_file: AUDIO_PATH + "question_1_1.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_1_1_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_1_1_incorrect.mp3", 
+                    },
+                    {
+                        text: "Question two: Which weapon did Princess Frost use to defeat Admiral Fang and his crew?",
+                        options: { A: "The laser cannons.", B: "The ice ray.", C: "The thrusters." },
+                        answer: "B",
+                        question_file: AUDIO_PATH + "question_1_2.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_1_2_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_1_2_incorrect.mp3", 
+                    }
+                ]
+            },
+            {
+                title: "Watch your Flippers (Issue #2)",
+                story_file: AUDIO_PATH + "story_2_audio.mp3", 
+                questions: [
+                    {
+                        text: "Question three: What caught the penguin recruits just as they were about to catch the fish?",
+                        options: { A: "The shark pirate net.", B: "Snatcher plants.", C: "A giant space squid." },
+                        answer: "B",
+                        question_file: AUDIO_PATH + "question_2_1.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_2_1_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_2_1_incorrect.mp3", 
+                    },
+                    {
+                        text: "Question four: What caused Princess Frost to miss catching the giant space fish?",
+                        options: { A: "She tripped on a rock.", B: "Her communicator rang with Admiral Fang calling.", C: "A laser hit her fish catcher." },
+                        answer: "B",
+                        question_file: AUDIO_PATH + "question_2_2.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_2_2_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_2_2_incorrect.mp3", 
+                    }
+                ]
+            },
+            {
+                title: "Ice to Meet You (Issue #3)",
+                story_file: AUDIO_PATH + "story_3_audio.mp3", 
+                questions: [
+                    {
+                        text: "Question five: Why did Princess Frost stop the recruit from grabbing the second space fish?",
+                        options: { A: "She thought it was too small.", B: "She saw a snatcher plant hiding behind it.", C: "She wanted Admiral Fang to catch it." },
+                        answer: "B",
+                        question_file: AUDIO_PATH + "question_3_1.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_3_1_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_3_1_incorrect.mp3", 
+                    },
+                    {
+                        text: "Question six: What did Princess Frost promise to trade Admiral Fang for the release of her crew?",
+                        options: { A: "Her crown.", B: "The space ship's hyperdrive.", C: "The location of a space fish." },
+                        answer: "C",
+                        question_file: AUDIO_PATH + "question_3_2.mp3",
+                        feedback_correct_file: AUDIO_PATH + "feedback_3_2_correct.mp3", 
+                        feedback_incorrect_file: AUDIO_PATH + "feedback_3_2_incorrect.mp3", 
+                    }
+                ]
+            }
+        ];
+        
+        // --- State and DOM Elements ---
+        let currentStoryIndex = 0;
+        let currentQuestionIndexInStory = 0;
+        let totalQuestionsAnswered = 0;
+        let totalScore = 0;
+
+        const quizAudio = document.getElementById('quiz-audio');
+        const statusText = document.getElementById('status-text');
+        const questionTextElement = document.getElementById('question-text');
+        const optionsTextElement = document.getElementById('options-text');
+        const answerButtons = document.getElementById('answer-buttons').querySelectorAll('button');
+        const restartButton = document.getElementById('restart-button');
+        const startStoryButton = document.getElementById('start-story-button');
+        
+        const totalQuizQuestions = quizData.reduce((count, story) => count + story.questions.length, 0);
+
+        // --- Utility Functions ---
+        const showCustomMessage = (message) => {
+            const messageBox = document.getElementById('message-box');
+            document.getElementById('message-content').innerText = message;
+            messageBox.style.display = 'block';
+        };
+
+        const generateUniqueId = () => {
+            return 'attempt-' + Math.random().toString(36).substring(2, 9);
+        };
+
+        // --- Local Storage Logic (Fallback for GitHub Pages) ---
+
+        const getLocalScores = () => {
+            const scoresJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+            return scoresJson ? JSON.parse(scoresJson) : [];
+        };
+
+        const saveLocalScore = () => {
+            const newScore = {
+                id: generateUniqueId(),
+                quiz: QUIZ_TOPIC,
+                score: totalScore,
+                total: totalQuizQuestions,
+                timestamp: new Date().toISOString()
+            };
+
+            const scores = getLocalScores();
+            scores.push(newScore);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(scores));
+            console.log("Score saved successfully to Local Storage:", newScore);
+            showCustomMessage("Score saved! You can view results in the 'View Scores' tab.");
+        };
+
+        const renderLocalScores = () => {
+            const scores = getLocalScores();
+            const tableBody = document.getElementById('scores-table-body');
+            tableBody.innerHTML = ''; 
+
+            if (scores.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">No scores saved in this browser yet.</td></tr>';
+                return;
+            }
+
+            scores.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            scores.forEach((scoreDoc, index) => {
+                const row = tableBody.insertRow();
+                
+                const date = new Date(scoreDoc.timestamp).toLocaleString();
+                const attemptId = scores.length - index; // Attempt 1 is oldest, latest is highest number
+                
+                row.insertCell().textContent = `Attempt ${attemptId}`;
+                row.insertCell().textContent = `${scoreDoc.score}/${scoreDoc.total}`;
+                row.insertCell().textContent = date;
+            });
+        };
+
+        // --- Audio Playback Function (using MP3 files) ---
+        const playAudio = (fileUrl) => {
+            return new Promise((resolve) => {
+                disableButtons(true);
+                quizAudio.src = fileUrl;
+                
+                quizAudio.onended = () => {
+                    resolve(true);
+                };
+
+                quizAudio.onerror = (e) => {
+                    console.error("Audio playback error. File not found:", fileUrl, e);
+                    // This custom message guides the teacher to check the audio file path and capitalization
+                    showCustomMessage(`Error: Could not play audio file. The code is looking for '${fileUrl}'. Please check your GitHub 'audio' folder for exact spelling and capitalization.`);
+                    resolve(false); 
+                };
+
+                quizAudio.play().catch(e => {
+                    console.warn("Audio playback failed (Autoplay prevented).", e);
+                    resolve(false);
+                });
+            });
+        };
+
+        // --- UI Control Functions ---
+        window.showTab = (tabId) => {
+            document.getElementById('quiz-view').classList.add('hidden');
+            document.getElementById('scores-view').classList.add('hidden');
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            document.getElementById('quiz-tab-btn').classList.remove('border-indigo-600', 'text-indigo-600');
+            document.getElementById('scores-tab-btn').classList.remove('border-indigo-600', 'text-indigo-600');
+            document.getElementById('quiz-tab-btn').classList.add('border-transparent', 'text-gray-500');
+            document.getElementById('scores-tab-btn').classList.add('border-transparent', 'text-gray-500');
+
+            document.getElementById(`${tabId}-btn`).classList.remove('border-transparent', 'text-gray-500');
+            document.getElementById(`${tabId}-btn`).classList.add('border-indigo-600', 'text-indigo-600');
+
+            // If switching to scores view, render local storage data
+            if (tabId === 'scores-view') {
+                 renderLocalScores(); 
+            }
+        };
+
+        const updateUI = (isStoryPhase = false) => {
+            restartButton.classList.add('hidden');
+            startStoryButton.classList.add('hidden'); 
+            
+            if (currentStoryIndex >= quizData.length) return; 
+
+            const story = quizData[currentStoryIndex];
+            
+            if (isStoryPhase) {
+                statusText.innerText = `Mission ${currentStoryIndex + 1} of ${quizData.length}: ${story.title}`;
+                questionTextElement.innerText = "Please wait, the story audio is playing. Listen carefully!";
+                optionsTextElement.innerHTML = ``;
+            } else {
+                const q = story.questions[currentQuestionIndexInStory];
+                const currentQuestionNumber = totalQuestionsAnswered + 1;
+
+                statusText.innerText = `Question ${currentQuestionNumber} of ${totalQuizQuestions} (Log: ${story.title})`;
+                questionTextElement.innerText = q.text;
+                optionsTextElement.innerHTML = `
+                    <p>A: ${q.options.A}</p>
+                    <p>B: ${q.options.B}</p>
+                    <p>C: ${q.options.C}</p>
+                `;
+            }
+        };
+
+        const disableButtons = (disable) => {
+            answerButtons.forEach(button => button.disabled = disable);
+            if (!disable && startStoryButton.dataset.ready === "true") {
+                startStoryButton.classList.remove('hidden');
+            }
+        };
+
+        // --- Quiz Flow Functions ---
+        
+        window.readQuestion = async () => {
+            updateUI(); 
+            const story = quizData[currentStoryIndex];
+            const q = story.questions[currentQuestionIndexInStory];
+            
+            await playAudio(q.question_file);
+            disableButtons(false);
+        };
+
+        window.checkAnswer = async (selectedAnswer) => {
+            disableButtons(true);
+
+            const story = quizData[currentStoryIndex];
+            const q = story.questions[currentQuestionIndexInStory];
+            
+            const isCorrect = selectedAnswer === q.answer;
+            totalQuestionsAnswered++;
+            
+            const buttonElement = document.getElementById(`btn-${selectedAnswer.toLowerCase()}`);
+            
+            // Visual feedback
+            buttonElement.classList.add('ring-4'); 
+            if (isCorrect) {
+                buttonElement.classList.add('ring-green-400');
+                await playAudio(q.feedback_correct_file);
+                totalScore++;
+            } else {
+                buttonElement.classList.add('ring-red-400');
+                await playAudio(q.feedback_incorrect_file);
+            }
+            
+            // Clean up visual feedback and proceed
+            setTimeout(() => {
+                buttonElement.classList.remove('ring-4', 'ring-green-400', 'ring-red-400');
+                currentQuestionIndexInStory++;
+                proceedToNextItem();
+            }, 500); 
+        };
+
+        const proceedToNextItem = async () => {
+            const story = quizData[currentStoryIndex];
+
+            if (currentQuestionIndexInStory < story.questions.length) {
+                await readQuestion();
+            } else if (currentStoryIndex < quizData.length - 1) {
+                currentStoryIndex++;
+                currentQuestionIndexInStory = 0;
+                
+                questionTextElement.innerText = `You finished the questions for Mission ${currentStoryIndex} of ${quizData.length}. Click below to start Mission ${currentStoryIndex + 1}.`;
+                startStoryButton.innerText = `Listen to the next Story`;
+                startStoryButton.dataset.ready = "true";
+                disableButtons(false);
+
+            } else {
+                endQuiz();
+            }
+        };
+
+        window.readStoryAndQuestions = async () => {
+            disableButtons(true);
+            startStoryButton.dataset.ready = "false";
+            const story = quizData[currentStoryIndex];
+            updateUI(true); 
+
+            // 1. Play the Story
+            await playAudio(story.story_file);
+            
+            // 2. Read the first question of the story immediately after the story audio ends
+            await readQuestion();
+        };
+
+        const endQuiz = async () => {
+            disableButtons(true);
+            questionTextElement.innerText = "MISSION COMPLETE!";
+            optionsTextElement.innerHTML = `Final Score: <span class="text-indigo-700 font-extrabold">${totalScore} out of ${totalQuizQuestions}</span>.`;
+            statusText.innerText = "Debriefing...";
+            restartButton.classList.remove('hidden');
+            startStoryButton.classList.add('hidden');
+
+            let finalScoreFile;
+            if (totalScore === totalQuizQuestions) {
+                finalScoreFile = AUDIO_PATH + "final_score_perfect.mp3";
+            } else if (totalScore >= totalQuizQuestions / 2) {
+                finalScoreFile = AUDIO_PATH + "final_score_good.mp3";
+            } else {
+                finalScoreFile = AUDIO_PATH + "final_score_low.mp3";
+            }
+
+            await playAudio(finalScoreFile);
+            
+            // Save the final score to local storage
+            saveLocalScore(); 
+        };
+        
+        // --- Initialization ---
+        window.startStorySequence = async () => {
+            startStoryButton.classList.add('hidden');
+            disableButtons(true);
+            
+            // 1. Play the welcome message
+            const introFile = AUDIO_PATH + "start_intro.mp3";
+            questionTextElement.innerText = "Welcome, Cadet! Listen for the instructions.";
+            statusText.innerText = "Instructions";
+            await playAudio(introFile);
+            
+            // 2. Play the call to action for the pupil
+            questionTextElement.innerText = "Click the 'Listen to the First Story' button below when you are ready to begin.";
+            startStoryButton.innerText = "Listen to the First Story";
+            
+            startStoryButton.dataset.ready = "true";
+            startStoryButton.classList.remove('hidden');
+            disableButtons(false);
+        }
+
+        window.startQuiz = () => {
+            currentStoryIndex = 0;
+            currentQuestionIndexInStory = 0;
+            totalQuestionsAnswered = 0;
+            totalScore = 0;
+            
+            questionTextElement.innerText = "Ready to start the mission log!";
+            optionsTextElement.innerHTML = "Click the blue button below to begin.";
+            statusText.innerText = "Ready to Start";
+            
+            startStoryButton.innerText = "Start the Quiz";
+            startStoryButton.dataset.ready = "true"; 
+            startStoryButton.classList.remove('hidden');
+            restartButton.classList.add('hidden');
+            disableButtons(false); 
+        };
+
+        window.onload = window.startQuiz;
+
+    </script>
+</body>
+</html>
